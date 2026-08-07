@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ WebAssembly · Cloudflare</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0a0f1e;
+            color: #eef2ff;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(30, 41, 59, 0.9);
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid #334155;
+        }
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-align: center;
+        }
+        .sub { text-align: center; color: #94a3b8; margin-bottom: 1.5rem; }
+        .badges {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin: 0.5rem 0 1.5rem 0;
+            flex-wrap: wrap;
+        }
+        .badge.cf { background: #f48120; color: white; }
+        .badge.wasm { background: #654ff0; color: white; }
+        .badge.c { background: #00599d; color: white; }
+        .badge.git { background: #24292e; color: white; }
+        .status {
+            display: flex;
+            gap: 2rem;
+            padding: 0.8rem;
+            background: #0f172a;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .status-item { font-size: 0.9rem; }
+        .status-item .label { color: #94a3b8; }
+        .status-item .value { color: #60a5fa; font-weight: bold; }
+        .status-item .value.ok { color: #10b981; }
+        textarea {
+            width: 100%;
+            padding: 0.8rem;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #eef2ff;
+            font-size: 1rem;
+            resize: vertical;
+            font-family: inherit;
+            min-height: 120px;
+        }
+        textarea:focus { outline: none; border-color: #60a5fa; }
+        .btn {
+            background: linear-gradient(90deg, #8b5cf6, #3b82f6);
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            font-weight: 600;
+        }
+        .btn:hover { transform: scale(1.02); }
+        .btn.secondary { background: #334155; }
+        .results {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+        .result-item {
+            background: #0f172a;
+            padding: 0.8rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .result-item .number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+        .result-item .label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+        }
+        .keywords {
+            margin-top: 1rem;
+            padding: 0.8rem;
+            background: #0f172a;
+            border-radius: 8px;
+        }
+        .keywords strong { color: #a78bfa; }
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #334155;
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+        @media (max-width: 600px) {
+            .results { grid-template-columns: 1fr 1fr; }
+            .status { flex-direction: column; gap: 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ WebAssembly</h1>
+        <p class="sub">Funciones en C compiladas a WASM · Cloudflare Pages</p>
+
+        <div class="badges">
+            <span class="badge cf">☁️ Cloudflare</span>
+            <span class="badge wasm">🔷 WASM</span>
+            <span class="badge c">⚙️ C</span>
+            <span class="badge git">🐙 GitHub</span>
+        </div>
+
+        <div class="status">
+            <div class="status-item"><span class="label">⚡ WASM:</span> <span class="value" id="wasmStatus">⏳ Cargando...</span></div>
+            <div class="status-item"><span class="label">📦 Versión:</span> <span class="value" id="wasmVersion">-</span></div>
+            <div class="status-item"><span class="label">🌐 CDN:</span> <span class="value ok">Cloudflare ✅</span></div>
+        </div>
+
+        <textarea id="textInput">La inteligencia artificial está revolucionando el mundo. Cada día surgen nuevas aplicaciones que mejoran nuestra calidad de vida.</textarea>
+
+        <div>
+            <button class="btn" onclick="analizar()">🔍 Analizar con WASM</button>
+            <button class="btn secondary" onclick="recargar()">🔄 Recargar WASM</button>
+        </div>
+
+        <div class="results">
+            <div class="result-item"><div class="number" id="rPalabras">-</div><div class="label">📝 Palabras</div></div>
+            <div class="result-item"><div class="number" id="rCaracteres">-</div><div class="label">📄 Caracteres</div></div>
+            <div class="result-item"><div class="number" id="rOraciones">-</div><div class="label">📖 Oraciones</div></div>
+            <div class="result-item"><div class="number" id="rSilabas">-</div><div class="label">🔤 Sílabas</div></div>
+            <div class="result-item"><div class="number" id="rLegibilidad">-</div><div class="label">📊 Legibilidad</div></div>
+            <div class="result-item"><div class="number" id="rIdioma">-</div><div class="label">🌐 Idioma</div></div>
+        </div>
+
+        <div class="keywords">
+            <strong>🏷️ Keywords:</strong> <span id="rKeywords">-</span>
+        </div>
+
+        <footer>⚡ WebAssembly · Compilado desde C · Desplegado en Cloudflare Pages</footer>
+    </div>
+
+    <script>
+        // ============================================
+        // CARGADOR WEBASSEMBLY
+        // ============================================
+        class WASMLoader {
+            constructor() {
+                this.wasm = null;
+                this.ready = false;
+            }
+
+            async cargar() {
+                try {
+                    console.log('⚡ Cargando WebAssembly...');
+                    const respuesta = await fetch('src/optimizer.wasm');
+                    if (!respuesta.ok) {
+                        throw new Error('No se pudo cargar el archivo WASM');
+                    }
+                    const bytes = await respuesta.arrayBuffer();
+                    const { instance } = await WebAssembly.instantiate(bytes);
+                    this.wasm = instance.exports;
+                    this.ready = true;
+                    console.log('✅ WASM cargado correctamente');
+                    console.log('📊 Funciones:', Object.keys(this.wasm));
+                    return true;
+                } catch (error) {
+                    console.error('❌ Error:', error);
+                    document.getElementById('wasmStatus').textContent = '❌ Error';
+                    document.getElementById('wasmStatus').style.color = '#ef4444';
+                    return false;
+                }
+            }
+
+            contarPalabras(t) { return this.ready ? this.wasm.contar_palabras(t) : 0; }
+            contarCaracteres(t) { return this.ready ? this.wasm.contar_caracteres(t) : 0; }
+            contarSilabas(t) { return this.ready ? this.wasm.contar_silabas(t) : 0; }
+            contarOraciones(t) { return this.ready ? this.wasm.contar_oraciones(t) : 0; }
+            calcularLegibilidad(t) { return this.ready ? this.wasm.calcular_legibilidad(t) : 50; }
+            detectarIdioma(t) { return this.ready ? this.wasm.detectar_idioma(t) : 0; }
+            extraerKeywords(t) {
+                if (!this.ready) return '';
+                const buffer = new Uint8Array(256);
+                this.wasm.extraer_keywords(t, buffer, 256);
+                let str = '';
+                for (let i = 0; i < 256 && buffer[i] !== 0; i++) {
+                    str += String.fromCharCode(buffer[i]);
+                }
+                return str;
+            }
+            getVersion() { return this.ready ? this.wasm.get_version() : 'No cargado'; }
+        }
+
+        const wasm = new WASMLoader();
+
+        function analizar() {
+            if (!wasm.ready) {
+                alert('⏳ Espera a que WebAssembly cargue');
+                return;
+            }
+
+            const texto = document.getElementById('textInput').value;
+            if (!texto || texto.trim().length === 0) {
+                alert('⚠️ Escribe un texto');
+                return;
+            }
+
+            try {
+                document.getElementById('rPalabras').textContent = wasm.contarPalabras(texto);
+                document.getElementById('rCaracteres').textContent = wasm.contarCaracteres(texto);
+                document.getElementById('rOraciones').textContent = wasm.contarOraciones(texto);
+                document.getElementById('rSilabas').textContent = wasm.contarSilabas(texto);
+                
+                const leg = wasm.calcularLegibilidad(texto);
+                document.getElementById('rLegibilidad').textContent = leg.toFixed(1);
+                
+                const idiomas = ['🇪🇸 Español', '🇬🇧 Inglés', '🇩🇪 Alemán'];
+                const idioma = wasm.detectarIdioma(texto);
+                document.getElementById('rIdioma').textContent = idiomas[idioma] || '❓';
+                
+                const keywords = wasm.extraerKeywords(texto);
+                document.getElementById('rKeywords').textContent = keywords || 'No se encontraron';
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        function recargar() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ Recargando...';
+            
+            document.getElementById('wasmStatus').textContent = '⏳ Recargando...';
+            document.getElementById('wasmStatus').style.color = '#f59e0b';
+            
+            wasm.ready = false;
+            wasm.wasm = null;
+            
+            setTimeout(async () => {
+                await wasm.cargar();
+                if (wasm.ready) {
+                    document.getElementById('wasmStatus').textContent = '✅ Activo';
+                    document.getElementById('wasmStatus').style.color = '#10b981';
+                    document.getElementById('wasmVersion').textContent = wasm.getVersion();
+                }
+                btn.disabled = false;
+                btn.textContent = '🔄 Recargar WASM';
+            }, 500);
+        }
+
+        async function iniciar() {
+            const statusEl = document.getElementById('wasmStatus');
+            const versionEl = document.getElementById('wasmVersion');
+            
+            statusEl.textContent = '⏳ Cargando...';
+            statusEl.style.color = '#f59e0b';
+            
+            const ok = await wasm.cargar();
+            
+            if (ok) {
+                statusEl.textContent = '✅ Activo';
+                statusEl.style.color = '#10b981';
+                versionEl.textContent = wasm.getVersion();
+                setTimeout(analizar, 300);
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                const target = document.activeElement;
+                if (target && target.id === 'textInput') {
+                    analizar();
+                }
+            }
+        });
+
+        iniciar();
+    </script>
+</body>
+</html>
